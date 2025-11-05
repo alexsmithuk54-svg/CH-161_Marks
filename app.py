@@ -36,8 +36,8 @@ def load_data():
                     df = pd.read_csv(file_name)
 
                     # Debug: Show what columns we actually have
-                    #st.sidebar.write("Raw columns:", list(df.columns))
-                    #st.sidebar.write("DataFrame shape:", df.shape)
+                    # st.sidebar.write("Raw columns:", list(df.columns))
+                    # st.sidebar.write("DataFrame shape:", df.shape)
 
                     used_file = file_name
                     st.sidebar.success(f"✓ Loaded: {file_name}")
@@ -57,18 +57,18 @@ def load_data():
             return pd.DataFrame(), pd.DataFrame()
 
         # Display file info
-        #st.sidebar.write(f"**File loaded:** {used_file}")
-        #st.sidebar.write(f"**Total records:** {len(df)}")
+        # st.sidebar.write(f"**File loaded:** {used_file}")
+        # st.sidebar.write(f"**Total records:** {len(df)}")
 
         # Show the first few rows for debugging
-        #st.sidebar.write("First few rows:")
-        #st.sidebar.write(df.head())
+        # st.sidebar.write("First few rows:")
+        # st.sidebar.write(df.head())
 
         # Clean column names (remove any extra spaces and special characters)
         df.columns = df.columns.str.strip()
 
         # Show available columns for debugging
-        #st.sidebar.write("**Columns found:**", list(df.columns))
+        # st.sidebar.write("**Columns found:**", list(df.columns))
 
         # Check what columns we actually have and map them
         column_mapping = {}
@@ -94,7 +94,7 @@ def load_data():
         # If we found matches, rename the columns
         if column_mapping:
             df = df.rename(columns=column_mapping)
-            #st.sidebar.write("After column mapping:", list(df.columns))
+            # st.sidebar.write("After column mapping:", list(df.columns))
 
         # Check if we have the essential columns
         essential_columns = ['REG#', 'Total Marks', 'Section']
@@ -138,13 +138,19 @@ def load_data():
         df['Overall Rank'] = df['Total Marks'].rank(ascending=False, method='min').astype(int)
         df['Rank in Section'] = df.groupby('Section')['Total Marks'].rank(ascending=False, method='min').astype(int)
 
-        # Calculate section statistics
+        # Calculate section statistics - UPDATED TO INCLUDE QUIZ AND MID AVERAGES
         section_stats = df.groupby('Section').agg({
-            'Total Marks': ['count', 'mean', 'max', 'min']
+            'Total Marks': ['count', 'mean', 'max', 'min'],
+            'Quiz Marks (Out of 10)': ['mean', 'max', 'min'] if 'Quiz Marks (Out of 10)' in df.columns else pd.NaT,
+            'Mid Marks (Out of 40)': ['mean', 'max', 'min'] if 'Mid Marks (Out of 40)' in df.columns else pd.NaT
         }).round(2)
 
         # Flatten the column names
-        section_stats.columns = ['Student Count', 'Average Marks', 'Highest Marks', 'Lowest Marks']
+        section_stats.columns = [
+            'Student Count', 'Average Total Marks', 'Highest Total Marks', 'Lowest Total Marks',
+            'Average Quiz Marks', 'Highest Quiz Marks', 'Lowest Quiz Marks',
+            'Average Mid Marks', 'Highest Mid Marks', 'Lowest Mid Marks'
+        ]
         section_stats = section_stats.reset_index()
 
         st.sidebar.success("✓ Data processed successfully!")
@@ -160,9 +166,6 @@ def load_data():
 # Load data
 df, section_stats = load_data()
 
-# Rest of your existing code continues here...
-# [The rest of your code remains the same as in the previous version]
-
 # Sidebar for registration number input
 st.sidebar.header("🔍 Student Search")
 st.sidebar.markdown("Enter your registration number below:")
@@ -177,18 +180,18 @@ if not df.empty:
 
     # Display sample registration numbers for testing
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🎯 Sample Registration Numbers")
+    #st.sidebar.subheader("🎯 Sample Registration Numbers")
 
     # Get samples from each section
-    samples = []
-    for section in sorted(df['Section'].unique()):
-        section_sample = df[df['Section'] == section].head(2)
-        samples.extend(section_sample['REG#'].tolist())
+    #samples = []
+    #for section in sorted(df['Section'].unique()):
+     #   section_sample = df[df['Section'] == section].head(2)
+    #    samples.extend(section_sample['REG#'].tolist())
 
-    for reg in samples[:8]:  # Show max 8 samples
-        if st.sidebar.button(f"📝 {reg}", key=f"sample_{reg}"):
-            st.session_state.reg_input = reg
-            st.rerun()
+    #for reg in samples[:8]:  # Show max 8 samples
+    #    if st.sidebar.button(f"📝 {reg}", key=f"sample_{reg}"):
+     #       st.session_state.reg_input = reg
+      #      st.rerun()
 
 # Main content area
 if not df.empty:
@@ -319,7 +322,7 @@ if not df.empty:
 
                 st.plotly_chart(fig_rank, use_container_width=True)
 
-            # Section comparison and statistics
+            # Section comparison and statistics - UPDATED WITH QUIZ AND MID AVERAGES
             st.subheader("📊 Section and Class Statistics")
 
             col1, col2 = st.columns(2)
@@ -331,6 +334,13 @@ if not df.empty:
                 st.write(f"**Section {section} Statistics:**")
                 st.write(f"- Number of Students: {len(section_data)}")
                 st.write(f"- Average Total Marks: {section_data['Total Marks'].mean():.2f}")
+
+                # Add quiz and mid averages for section
+                if 'Quiz Marks (Out of 10)' in df.columns:
+                    st.write(f"- Average Quiz Marks: {section_data['Quiz Marks (Out of 10)'].mean():.2f}/10")
+                if 'Mid Marks (Out of 40)' in df.columns:
+                    st.write(f"- Average Mid Marks: {section_data['Mid Marks (Out of 40)'].mean():.2f}/40")
+
                 st.write(f"- Highest Total Marks: {section_data['Total Marks'].max():.2f}")
                 st.write(f"- Lowest Total Marks: {section_data['Total Marks'].min():.2f}")
 
@@ -353,10 +363,17 @@ if not df.empty:
                 st.plotly_chart(fig_section, use_container_width=True)
 
             with col2:
-                # Overall class statistics
+                # Overall class statistics - UPDATED WITH QUIZ AND MID AVERAGES
                 st.write("**Overall Class Statistics:**")
                 st.write(f"- Total Students: {len(df)}")
                 st.write(f"- Average Total Marks: {df['Total Marks'].mean():.2f}")
+
+                # Add quiz and mid averages for class
+                if 'Quiz Marks (Out of 10)' in df.columns:
+                    st.write(f"- Average Quiz Marks: {df['Quiz Marks (Out of 10)'].mean():.2f}/10")
+                if 'Mid Marks (Out of 40)' in df.columns:
+                    st.write(f"- Average Mid Marks: {df['Mid Marks (Out of 40)'].mean():.2f}/40")
+
                 st.write(f"- Highest Total Marks: {df['Total Marks'].max():.2f}")
                 st.write(f"- Lowest Total Marks: {df['Total Marks'].min():.2f}")
 
@@ -383,7 +400,7 @@ if not df.empty:
             st.info("💡 Try clicking one of the sample registration numbers in the sidebar")
 
     else:
-        # Show overall statistics when no registration number is entered
+        # Show overall statistics when no registration number is entered - UPDATED WITH QUIZ AND MID AVERAGES
         st.info("👆 Enter your registration number in the sidebar to view your marks.")
 
         st.subheader("📊 Overall Class Statistics")
@@ -397,10 +414,40 @@ if not df.empty:
             st.metric("Average Total Marks", f"{df['Total Marks'].mean():.2f}")
 
         with col3:
-            st.metric("Highest Total Marks", f"{df['Total Marks'].max():.2f}")
+            # Add average quiz marks if available
+            if 'Quiz Marks (Out of 10)' in df.columns:
+                st.metric("Average Quiz Marks", f"{df['Quiz Marks (Out of 10)'].mean():.2f}/10")
+            else:
+                st.metric("Highest Total Marks", f"{df['Total Marks'].max():.2f}")
 
         with col4:
-            st.metric("Lowest Total Marks", f"{df['Total Marks'].min():.2f}")
+            # Add average mid marks if available
+            if 'Mid Marks (Out of 40)' in df.columns:
+                st.metric("Average Mid Marks", f"{df['Mid Marks (Out of 40)'].mean():.2f}/40")
+            else:
+                st.metric("Lowest Total Marks", f"{df['Total Marks'].min():.2f}")
+
+        # Additional metrics row if quiz and mid marks are available
+        if 'Quiz Marks (Out of 10)' in df.columns or 'Mid Marks (Out of 40)' in df.columns:
+            col5, col6, col7, col8 = st.columns(4)
+            col_index = 0
+
+            if 'Quiz Marks (Out of 10)' in df.columns:
+                with col5:
+                    st.metric("Highest Quiz Marks", f"{df['Quiz Marks (Out of 10)'].max():.2f}/10")
+                col_index += 1
+
+            if 'Mid Marks (Out of 40)' in df.columns:
+                with col6:
+                    st.metric("Highest Mid Marks", f"{df['Mid Marks (Out of 40)'].max():.2f}/40")
+                col_index += 1
+
+            # Fill remaining columns with existing metrics if needed
+            if col_index < 4:
+                with col7:
+                    st.metric("Highest Total Marks", f"{df['Total Marks'].max():.2f}")
+                with col8:
+                    st.metric("Lowest Total Marks", f"{df['Total Marks'].min():.2f}")
 
         # Overall distribution
         fig = px.histogram(
@@ -412,7 +459,7 @@ if not df.empty:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # Section-wise performance
+        # Section-wise performance - UPDATED TO SHOW QUIZ AND MID AVERAGES
         st.subheader("📈 Section-wise Performance")
 
         col1, col2 = st.columns(2)
@@ -421,25 +468,58 @@ if not df.empty:
             fig_section_avg = px.bar(
                 section_stats,
                 x='Section',
-                y='Average Marks',
-                title="Average Marks by Section",
-                color='Average Marks',
+                y='Average Total Marks',
+                title="Average Total Marks by Section",
+                color='Average Total Marks',
                 color_continuous_scale='viridis'
             )
             st.plotly_chart(fig_section_avg, use_container_width=True)
 
         with col2:
-            fig_section_count = px.pie(
-                section_stats,
-                values='Student Count',
-                names='Section',
-                title="Student Distribution by Section"
-            )
-            st.plotly_chart(fig_section_count, use_container_width=True)
+            # Show quiz averages by section if available
+            if 'Quiz Marks (Out of 10)' in df.columns:
+                fig_section_quiz = px.bar(
+                    section_stats,
+                    x='Section',
+                    y='Average Quiz Marks',
+                    title="Average Quiz Marks by Section",
+                    color='Average Quiz Marks',
+                    color_continuous_scale='blues'
+                )
+                st.plotly_chart(fig_section_quiz, use_container_width=True)
+            else:
+                fig_section_count = px.pie(
+                    section_stats,
+                    values='Student Count',
+                    names='Section',
+                    title="Student Distribution by Section"
+                )
+                st.plotly_chart(fig_section_count, use_container_width=True)
+
+        # Additional chart for mid marks if available
+        if 'Mid Marks (Out of 40)' in df.columns:
+            col3, col4 = st.columns(2)
+
+            with col3:
+                fig_section_mid = px.bar(
+                    section_stats,
+                    x='Section',
+                    y='Average Mid Marks',
+                    title="Average Mid Marks by Section",
+                    color='Average Mid Marks',
+                    color_continuous_scale='reds'
+                )
+                st.plotly_chart(fig_section_mid, use_container_width=True)
 
         # Top 10 students
         st.subheader("🏆 Top 10 Students Overall")
         top_10 = df.nlargest(10, 'Total Marks')[['REG#', 'Section', 'Total Marks', '%', 'Overall Rank']]
+        # Add quiz and mid marks to display if available
+        if 'Quiz Marks (Out of 10)' in df.columns:
+            top_10['Quiz Marks'] = df.loc[top_10.index, 'Quiz Marks (Out of 10)']
+        if 'Mid Marks (Out of 40)' in df.columns:
+            top_10['Mid Marks'] = df.loc[top_10.index, 'Mid Marks (Out of 40)']
+
         st.dataframe(top_10.style.format({'Total Marks': '{:.1f}', '%': '{:.1f}%'}))
 
 else:
